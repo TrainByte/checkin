@@ -15,6 +15,15 @@ jobs:
         with:
           node-version: 18
       - run: npm ci
+      
+      - name: Debug secrets
+        run: |
+          echo "GLADOS set? ${GLADOS:+yes}"
+          echo "NOTIFY set? ${NOTIFY:+yes}"
+        env:
+          GLADOS: ${{ secrets.GLADOS }}
+          NOTIFY: ${{ secrets.NOTIFY }}
+          
       - run: npm run main
         env:
           GLADOS: ${{ secrets.GLADOS }}
