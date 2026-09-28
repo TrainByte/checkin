@@ -42,9 +42,21 @@ const glados = async () => {
 
       const action = await actionRes.json()
 
-      // GLaDOS API code != 0 表示异常
-      if (action?.code) {
-        const msg = action?.message || `API error code: ${action.code}`
+      console.log(`Account ${i + 1} checkin response:`, action)
+
+      const actionMessage = action?.message || ''
+
+      // 判断“今日已签到”
+      const alreadyChecked =
+        actionMessage.includes("Today's observation logged") ||
+        actionMessage.toLowerCase().includes('return tomorrow') ||
+        actionMessage.toLowerCase().includes('already') ||
+        actionMessage.toLowerCase().includes('repeat')
+
+      // 非“今日已签到”的 code != 0 才视为异常
+      if (action?.code && !alreadyChecked) {
+        const msg =
+          actionMessage || `API error code: ${action.code}`
 
         if (
           msg.includes('没有权限') ||
@@ -58,10 +70,13 @@ const glados = async () => {
       }
 
       // 2. 查询剩余天数
-      const statusRes = await fetch('https://glados.cloud/api/user/status', {
-        method: 'GET',
-        headers: common,
-      })
+      const statusRes = await fetch(
+        'https://glados.cloud/api/user/status',
+        {
+          method: 'GET',
+          headers: common,
+        }
+      )
 
       if (!statusRes.ok) {
         throw new Error(`状态接口 HTTP ${statusRes.status}`)
@@ -69,8 +84,15 @@ const glados = async () => {
 
       const status = await statusRes.json()
 
+      console.log(`Account ${i + 1} status response:`, {
+        code: status?.code,
+        message: status?.message,
+        leftDays: status?.data?.leftDays,
+      })
+
       if (status?.code) {
-        const msg = status?.message || `API error code: ${status.code}`
+        const msg =
+          status?.message || `API error code: ${status.code}`
 
         if (
           msg.includes('没有权限') ||
@@ -84,22 +106,17 @@ const glados = async () => {
       }
 
       const leftDays = Number(status?.data?.leftDays)
-      const message = action?.message || '签到成功'
 
-      // 区分“今天新签到”和“重复签到”
-      if (
-        message.toLowerCase().includes('repeat') ||
-        message.toLowerCase().includes('already')
-      ) {
+      if (alreadyChecked) {
         notice.push(
           `✅ ${account} 今日已签到`,
-          `${message}`,
+          actionMessage || '今日已签到',
           `剩余天数：${Number.isFinite(leftDays) ? leftDays : '未知'}`
         )
       } else {
         notice.push(
           `✅ ${account} 签到成功`,
-          `${message}`,
+          actionMessage || '签到成功',
           `剩余天数：${Number.isFinite(leftDays) ? leftDays : '未知'}`
         )
       }
@@ -130,6 +147,7 @@ const glados = async () => {
   return { notice, hasError }
 }
 
+
 const notify = async (notice) => {
   if (!process.env.NOTIFY || !notice || notice.length === 0) return
 
@@ -138,22 +156,36 @@ const notify = async (notice) => {
 
     try {
       if (option.startsWith('pushplus:')) {
-        const token = option.split(':')[1]
+        const token = option.slice('pushplus:'.length).trim()
 
-        const res = await fetch('https://www.pushplus.plus/send', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            token,
-            title: notice.some(v => String(v).includes('❌') || String(v).includes('⚠️'))
-              ? 'GLaDOS 签到异常'
-              : 'GLaDOS 签到成功',
-            content: notice.join('<br>'),
-            template: 'markdown',
-          }),
-        }).then(r => r.json())
+        if (!token) {
+          console.error('PushPlus token 为空')
+          continue
+        }
+
+        const hasError = notice.some(
+          v =>
+            String(v).includes('❌') ||
+            String(v).includes('⚠️')
+        )
+
+        const res = await fetch(
+          'https://www.pushplus.plus/send',
+          {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              token,
+              title: hasError
+                ? 'GLaDOS 签到异常'
+                : 'GLaDOS 签到成功',
+              content: notice.join('<br>'),
+              template: 'markdown',
+            }),
+          }
+        ).then(r => r.json())
 
         console.log('Pushplus result:', res)
       }
@@ -163,11 +195,16 @@ const notify = async (notice) => {
   }
 }
 
+
 const main = async () => {
   try {
     const result = await glados()
 
-    if (!result || !result.notice || result.notice.length === 0) {
+    if (
+      !result ||
+      !result.notice ||
+      result.notice.length === 0
+    ) {
       console.log('No checkin notice to send')
       process.exitCode = 1
       return
@@ -181,7 +218,9 @@ const main = async () => {
 
     // 通知发完以后再让 Actions 标红
     if (result.hasError) {
-      console.error('One or more GLaDOS accounts failed.')
+      console.error(
+        'One or more GLaDOS accounts failed.'
+      )
       process.exitCode = 1
     }
   } catch (err) {
