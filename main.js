@@ -23,8 +23,8 @@ const glados = async () => {
       const common = {
         cookie,
         referer: 'https://glados.cloud/console/checkin',
-        'user-agent':
-          'Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Edg/155.0.0.0 Mobile Safari/537.36',
+'user-agent':
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36',
       }
 
 
