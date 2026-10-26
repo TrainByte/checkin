@@ -19,12 +19,14 @@ const glados = async () => {
     const account = `账号 ${i + 1}`
 
     try {
+
       const common = {
         cookie,
         referer: 'https://glados.cloud/console/checkin',
         'user-agent':
-Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Edg/155.0.0.0 Mobile Safari/537.36
+          'Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Edg/155.0.0.0 Mobile Safari/537.36',
       }
+
 
       // 1. 签到
       const actionRes = await fetch('https://glados.cloud/api/user/checkin', {
