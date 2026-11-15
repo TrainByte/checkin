@@ -1,0 +1,13 @@
+{
+  "name": "glados-windows-edge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "login:1": "node login.mjs 1",
+    "login:2": "node login.mjs 2",
+    "checkin": "node checkin.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}
