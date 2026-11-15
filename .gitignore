@@ -1,1 +1,5 @@
 node_modules
+local/node_modules/
+local/.env
+local/logs/
+local/.playwright/
