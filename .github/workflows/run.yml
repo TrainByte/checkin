@@ -2,41 +2,59 @@ name: run
 
 on:
   workflow_dispatch:
-  push:
+    inputs:
+      force_browser:
+        description: 'Skip the HTTP attempt and use the official Turnstile browser flow'
+        type: boolean
+        default: false
   schedule:
-    - cron: '0 1 * * *'
+    # UTC 06:20 / 07:20 = Beijing 14:20 / 15:20.
+    # The script waits until the configured Beijing check-in window (default 19:30).
+    - cron: '20 6 * * *'
+    - cron: '20 7 * * *'
+
+concurrency:
+  group: glados-checkin
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   run:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 360
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
 
-      - name: Install dependencies
+      - name: Install base dependencies
         run: npm ci
 
-      - name: Debug secrets
+      - name: Install Playwright Chromium
         run: |
-          echo "GLADOS set? ${GLADOS:+yes}"
-          echo "NOTIFY set? ${NOTIFY:+yes}"
-        env:
-          GLADOS: ${{ secrets.GLADOS }}
-          NOTIFY: ${{ secrets.NOTIFY }}
+          npm install playwright --no-save --no-audit --no-fund
+          npx playwright install --with-deps chromium
 
-      - name: Run GLaDOS checkin
+      - name: Run GLaDOS check-in
         run: npm run main
         env:
+          # Existing GLADOS can contain one Cookie per line; GLADOS2 is optional.
           GLADOS: ${{ secrets.GLADOS }}
+          GLADOS2: ${{ secrets.GLADOS2 }}
+          GLADOS_UA: ${{ secrets.GLADOS_UA }}
+          GLADOS_UA2: ${{ secrets.GLADOS_UA2 }}
+          GLADOS2_UA: ${{ secrets.GLADOS2_UA }}
+          DOMAIN: ${{ secrets.DOMAIN }}
           NOTIFY: ${{ secrets.NOTIFY }}
-
-      - name: Finished
-        if: always()
-        run: echo "Finished main script."
+          # Explicitly disable automatic point exchange.
+          AUTO_EXCHANGE: 'false'
+          EXCHANGE_THRESHOLD: ${{ secrets.EXCHANGE_THRESHOLD }}
+          CHECKIN_WINDOW_START: ${{ vars.CHECKIN_WINDOW_START }}
+          FORCE_BROWSER: ${{ inputs.force_browser }}
