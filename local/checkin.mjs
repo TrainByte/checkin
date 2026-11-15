@@ -60,8 +60,8 @@ async function runAccount(index) {
 
     const after = await queryPoints(page);
     const recordedAfter = hasTodayRecord(after.history);
-    const confirmed = recordedAfter === true ||
-      (responseBody?.code === 0 && recordedAfter !== false);
+    // An API success code alone is not enough to claim a completed check-in.
+    const confirmed = recordedAfter === true;
 
     if (!confirmed) {
       const reason = responseBody?.message || (
